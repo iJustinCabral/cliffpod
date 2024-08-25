@@ -66,3 +66,25 @@ export interface Episode {
       throw error;
     }
   }
+  
+  export async function summarizeTranscription(transcription: string): Promise<{ summary: string }> {
+    try {
+      const response = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transcription }),
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to summarize transcription');
+      }
+  
+      return await response.json();
+    } catch (error) {
+      console.error('Error summarizing transcription:', error);
+      throw error;
+    }
+  }

@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  organization: process.env.OPENAI_ORG_ID,
-});
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY as string);
 
-const MAX_CHUNK_SIZE = 24 * 1024 * 1024; // 24 MB to be safe
+const MAX_CHUNK_SIZE = 15 * 1024 * 1024; // 15 MB to be safe
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
@@ -37,7 +34,7 @@ async function splitAudio(inputBuffer: Buffer): Promise<string[]> {
     const outputPath = path.join(tempDir, `chunk_${chunks.length}.mp3`);
     chunks.push(outputPath);
 
-    await new Promise<void>((resolve: () => void, reject: (err: any) => void) => {
+    await new Promise<void>((resolve, reject) => {
       ffmpeg(inputPath)
         .setStartTime(start)
         .setDuration(chunkDuration)
@@ -54,11 +51,22 @@ async function splitAudio(inputBuffer: Buffer): Promise<string[]> {
 async function transcribeChunkWithRetry(chunkPath: string, retries = MAX_RETRIES): Promise<string> {
   try {
     const chunk = await fs.readFile(chunkPath);
-    const transcription = await openai.audio.transcriptions.create({
-      file: new File([chunk], 'audio.mp3', { type: 'audio/mpeg' }),
-      model: 'whisper-1',
-    });
-    return transcription.text;
+    const base64Audio = chunk.toString('base64');
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const result = await model.generateContent([
+      "Transcribe the following audio file:",
+      {
+        inlineData: {
+          mimeType: "audio/mpeg",
+          data: base64Audio
+        }
+      }
+    ]);
+
+    const response = await result.response;
+    return response.text();
   } catch (error) {
     if (retries > 0) {
       console.log(`Retrying transcription. Attempts left: ${retries - 1}`);
@@ -75,7 +83,7 @@ export async function POST(request: Request) {
     console.log('Received audio URL:', audioUrl);
 
     if (!audioUrl) {
-        throw new Error("Audio URL is missing");
+      throw new Error("Audio URL is missing");
     }
 
     // Validate URL

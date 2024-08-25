@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { fetchPodcastFeed, Episode, transcribeEpisode } from '@/services/PodcastService';
+import { fetchPodcastFeed, Episode, transcribeEpisode, summarizeTranscription } from '@/services/PodcastService';
 
 const PodcastInput: React.FC = () => {
   const [url, setUrl] = useState('');
@@ -10,6 +10,7 @@ const PodcastInput: React.FC = () => {
   const [error, setError] = useState('');
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [transcription, setTranscription] = useState('');
+  const [summary, setSummary] = useState('');
   const [progress, setProgress] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,6 +33,7 @@ const PodcastInput: React.FC = () => {
   const handleEpisodeSelect = async (episode: Episode) => {
     setSelectedEpisode(episode);
     setTranscription('');
+    setSummary('');
     setProgress(0);
     setError('');
     setLoading(true);
@@ -50,6 +52,11 @@ const PodcastInput: React.FC = () => {
       const result = await transcribeEpisode(episode.audioUrl);
       setProgress(100);
       setTranscription(result.transcription);
+
+            // Generate summary
+      const summaryResult = await summarizeTranscription(result.transcription);
+      setSummary(summaryResult.summary);
+
     } catch (err) {
       if (err instanceof Error) {
         setError(`Failed to transcribe episode: ${err.message}`);
@@ -103,10 +110,9 @@ const PodcastInput: React.FC = () => {
         </div>
       )}
 
-      {selectedEpisode && (
+{selectedEpisode && (
         <div>
-          <h2 className="text-xl font-bold mb-2">Selected Episode:</h2>
-          <p className="font-semibold">{selectedEpisode.title}</p>
+          <h2 className="text-xl font-bold mb-2">Selected Episode: {selectedEpisode.title}</h2>
           {progress > 0 && progress < 100 && (
             <div className="mt-4">
               <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
@@ -121,25 +127,27 @@ const PodcastInput: React.FC = () => {
           {transcription && (
             <div className="mt-4">
               <h3 className="text-lg font-semibold mb-2">Transcription:</h3>
-              <p className="whitespace-pre-wrap">{transcription}</p>
+              <div className="max-h-60 overflow-y-auto bg-gray-100 p-4 rounded">
+                <p className="whitespace-pre-wrap">{transcription}</p>
+              </div>
             </div>
           )}
-          {!loading && !transcription && (
-            <button
-              onClick={() => handleEpisodeSelect(selectedEpisode)}
-              className="mt-2 px-3 py-1 text-sm text-white bg-green-500 rounded hover:bg-green-600"
-              disabled={loading}
-            >
-              Retry Transcription
-            </button>
+          {summary && (
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-2">Summary:</h3>
+              <div className="bg-gray-100 p-4 rounded">
+                <p className="whitespace-pre-wrap">{summary}</p>
+              </div>
+            </div>
           )}
           <button
             onClick={() => {
               setSelectedEpisode(null);
               setTranscription('');
+              setSummary('');
               setProgress(0);
             }}
-            className="mt-2 ml-2 px-3 py-1 text-sm text-white bg-gray-500 rounded hover:bg-gray-600"
+            className="mt-4 px-4 py-2 text-sm text-white bg-gray-500 rounded hover:bg-gray-600"
           >
             Back to Episodes
           </button>
