@@ -11,19 +11,18 @@ const PodcastInput: React.FC = () => {
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [transcription, setTranscription] = useState('');
   const [summary, setSummary] = useState('');
-  const [progress, setProgress] = useState(0);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [splitProgress, setSplitProgress] = useState(0);
+  const [transcribeProgress, setTranscribeProgress] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      console.log('Fetching podcast feed:', url);
       const fetchedEpisodes = await fetchPodcastFeed(url);
-      console.log('Fetched episodes:', fetchedEpisodes);
       setEpisodes(fetchedEpisodes);
     } catch (err) {
-      console.error('Error fetching podcast feed:', err);
       setError('Failed to fetch podcast feed. Please check the URL and try again.');
     } finally {
       setLoading(false);
@@ -34,34 +33,38 @@ const PodcastInput: React.FC = () => {
     setSelectedEpisode(episode);
     setTranscription('');
     setSummary('');
-    setProgress(0);
+    setDownloadProgress(0);
+    setSplitProgress(0);
+    setTranscribeProgress(0);
     setError('');
     setLoading(true);
   
-    console.log('Selected episode:', episode);
-    console.log('Audio URL:', episode.audioUrl);
-  
     if (!episode.audioUrl) {
-      console.error('Audio URL is missing. Full episode data:', JSON.stringify(episode, null, 2));
       setError('Audio URL is missing from the episode data');
       setLoading(false);
       return;
     }
   
     try {
-      const result = await transcribeEpisode(episode.audioUrl);
-      setProgress(100);
+      const result = await transcribeEpisode(episode.audioUrl, {
+        onDownloadProgress: setDownloadProgress,
+        onSplitProgress: setSplitProgress,
+        onTranscribeProgress: setTranscribeProgress,
+      });
+  
+      if (!result.transcription) {
+        throw new Error('Transcription is empty');
+      }
+  
       setTranscription(result.transcription);
-
-            // Generate summary
+  
       const summaryResult = await summarizeTranscription(result.transcription);
       setSummary(summaryResult.summary);
-
     } catch (err) {
       if (err instanceof Error) {
-        setError(`Failed to transcribe episode: ${err.message}`);
+        setError(`Failed to process episode: ${err.message}`);
       } else {
-        setError('Failed to transcribe episode. Please try again.');
+        setError('Failed to process episode. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -94,15 +97,15 @@ const PodcastInput: React.FC = () => {
           <h2 className="text-xl font-bold mb-2">Episodes:</h2>
           <ul className="space-y-2">
             {episodes.map((episode) => (
-              <li key={episode.guid} className="p-2 bg-black-100 rounded">
+              <li key={episode.guid} className="p-2 bg-gray-800 rounded">
                 <h3 className="font-semibold">{episode.title}</h3>
-                <p className="text-sm text-white-600">{episode.pubDate}</p>
+                <p className="text-sm text-gray-400">{episode.pubDate}</p>
                 <button
                   onClick={() => handleEpisodeSelect(episode)}
                   className="mt-2 px-3 py-1 text-sm text-white bg-green-500 rounded hover:bg-green-600"
                   disabled={loading}
                 >
-                  Transcribe
+                  Process
                 </button>
               </li>
             ))}
@@ -110,42 +113,36 @@ const PodcastInput: React.FC = () => {
         </div>
       )}
 
-{selectedEpisode && (
+      {selectedEpisode && (
         <div>
           <h2 className="text-xl font-bold mb-2">Selected Episode: {selectedEpisode.title}</h2>
-          {progress > 0 && progress < 100 && (
-            <div className="mt-4">
-              <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                <div
-                  className="bg-blue-600 h-2.5 rounded-full"
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-              <p className="text-center mt-2">{progress}% Complete</p>
-            </div>
-          )}
-          {transcription && (
-            <div className="mt-4">
+          <div className="space-y-4">
+            <ProgressBar label="Downloading" progress={downloadProgress} />
+            <ProgressBar label="Splitting" progress={splitProgress} />
+            <ProgressBar label="Transcribing" progress={transcribeProgress} />
+          </div>
+          <div className="mt-4 flex space-x-4">
+            <div className="w-1/2">
               <h3 className="text-lg font-semibold mb-2">Transcription:</h3>
-              <div className="max-h-60 overflow-y-auto bg-gray-100 p-4 rounded">
-                <p className="whitespace-pre-wrap">{transcription}</p>
+              <div className="h-96 overflow-y-auto bg-gray-800 p-4 rounded">
+                <p className="text-white whitespace-pre-wrap">{transcription}</p>
               </div>
             </div>
-          )}
-          {summary && (
-            <div className="mt-4">
+            <div className="w-1/2">
               <h3 className="text-lg font-semibold mb-2">Summary:</h3>
-              <div className="bg-gray-100 p-4 rounded">
-                <p className="whitespace-pre-wrap">{summary}</p>
+              <div className="h-96 overflow-y-auto bg-gray-800 p-4 rounded">
+                <p className="text-white whitespace-pre-wrap">{summary}</p>
               </div>
             </div>
-          )}
+          </div>
           <button
             onClick={() => {
               setSelectedEpisode(null);
               setTranscription('');
               setSummary('');
-              setProgress(0);
+              setDownloadProgress(0);
+              setSplitProgress(0);
+              setTranscribeProgress(0);
             }}
             className="mt-4 px-4 py-2 text-sm text-white bg-gray-500 rounded hover:bg-gray-600"
           >
@@ -156,5 +153,20 @@ const PodcastInput: React.FC = () => {
     </div>
   );
 };
+
+const ProgressBar: React.FC<{ label: string; progress: number }> = ({ label, progress }) => (
+  <div>
+    <div className="flex justify-between mb-1">
+      <span className="text-base font-medium text-white">{label}</span>
+      <span className="text-sm font-medium text-white">{progress}%</span>
+    </div>
+    <div className="w-full bg-gray-700 rounded-full h-2.5">
+      <div
+        className="bg-blue-600 h-2.5 rounded-full"
+        style={{ width: `${progress}%` }}
+      ></div>
+    </div>
+  </div>
+);
 
 export default PodcastInput;
