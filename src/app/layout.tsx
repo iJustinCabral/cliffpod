@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-
+import { initializeApp } from "./init";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CliffPods",
-  description: "AI Audio Podcast Summaries",
+  title: "TLDL News",
+  description: "AI Generated Newsletters from Podcasts",
 };
+
+if (typeof window === 'undefined') {
+  initializeApp();
+}
 
 export default function RootLayout({
   children,
