@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { Resend } from 'resend';
 
-export const runtime = 'edge';
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   try {
@@ -10,34 +11,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    const MAILCHIMP_API_KEY = process.env.MAILCHIMP_API_KEY;
-    const MAILCHIMP_AUDIENCE_ID = process.env.MAILCHIMP_AUDIENCE_ID;
-    const MAILCHIMP_API_SERVER = process.env.MAILCHIMP_API_SERVER;
+    // Add subscriber to Resend audience
+    const { data: contact, error: contactError } = await resend.contacts.create({
+      email,
+      unsubscribed: false,
+      audienceId: process.env.RESEND_AUDIENCE_ID as string,
+    });
 
-    if (!MAILCHIMP_API_KEY || !MAILCHIMP_AUDIENCE_ID || !MAILCHIMP_API_SERVER) {
-      throw new Error('Mailchimp configuration is missing');
+    if (contactError) {
+      throw new Error(contactError.message);
     }
 
-    const data = {
-      email_address: email,
-      status: 'subscribed',
-    };
+    // Send welcome email
+    const { data: emailData, error: emailError } = await resend.emails.send({
+      from: 'Your Podcast Newsletter <newsletter@tldl.news>',
+      to: email,
+      subject: 'Welcome to Your Podcast Newsletter',
+      html: '<p>Thank you for subscribing to our podcast newsletter!</p>'
+    });
 
-    const response = await fetch(
-      `https://${MAILCHIMP_API_SERVER}.api.mailchimp.com/3.0/lists/${MAILCHIMP_AUDIENCE_ID}/members`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `auth ${MAILCHIMP_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'Failed to subscribe');
+    if (emailError) {
+      throw new Error(emailError.message);
     }
 
     return NextResponse.json({ message: 'Successfully subscribed to the newsletter' });

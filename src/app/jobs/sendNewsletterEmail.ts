@@ -1,64 +1,44 @@
 import { CacheService } from '@/services/CacheService';
-import axios from 'axios';
+import { Resend } from 'resend';
 import cron from 'node-cron';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendNewsletterEmails = async () => {
   try {
     const newsletter = CacheService.get('latestNewsletter');
-    if (!newsletter) {
-      console.log('No newsletter found in cache');
+    if (!newsletter || typeof newsletter !== 'string') {
+      console.log('No valid newsletter found in cache');
       return;
     }
 
-    const MAILCHIMP_API_KEY = process.env.MAILCHIMP_API_KEY;
-    const MAILCHIMP_SERVER_PREFIX = process.env.MAILCHIMP_SERVER_PREFIX;
+    // Fetch subscribers from Resend audience
+    const { data: audience, error: audienceError } = await resend.contacts.list({
+      audienceId: process.env.RESEND_AUDIENCE_ID as string,
+    });
 
-    if (!MAILCHIMP_API_KEY || !MAILCHIMP_SERVER_PREFIX) {
-      throw new Error('Mailchimp configuration is missing');
+    if (audienceError) {
+      throw new Error(audienceError.message);
     }
 
-    // Fetch subscribers from Mailchimp API
-    const audienceId = process.env.MAILCHIMP_AUDIENCE_ID;
-    const subscribersResponse = await axios.get(
-      `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/lists/${audienceId}/members`,
-      {
-        headers: {
-          Authorization: `Bearer ${MAILCHIMP_API_KEY}`,
-        },
-        params: {
-          status: 'subscribed',
-          fields: 'members.email_address',
-        },
-      }
-    );
+    if (!audience || !audience.data) {
+      throw new Error('No audience data received');
+    }
 
-    const subscribers = subscribersResponse.data.members.map((member: any) => member.email_address);
+    const subscribers = audience.data.map(contact => contact.email);
 
-    // Send transactional email to each subscriber
+    // Send email to each subscriber
     for (const email of subscribers) {
-      await axios.post(
-        `https://${MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/messages/send-template`,
-        {
-          template_name: 'Daily Podcast Newsletter',
-          template_content: [
-            {
-              name: 'newsletter_content',
-              content: newsletter,
-            },
-          ],
-          message: {
-            subject: 'Your Daily Podcast Newsletter',
-            from_email: 'your-sender-email@example.com',
-            from_name: 'Your Podcast Newsletter',
-            to: [{ email }],
-          },
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${MAILCHIMP_API_KEY}`,
-          },
-        }
-      );
+      const { data, error } = await resend.emails.send({
+        from: 'Your Podcast Newsletter <newsletter@tldl.news>',
+        to: email,
+        subject: 'Your Daily Podcast Newsletter',
+        html: newsletter
+      });
+
+      if (error) {
+        console.error(`Error sending email to ${email}:`, error);
+      }
     }
 
     console.log(`Newsletter sent successfully to ${subscribers.length} subscribers`);
