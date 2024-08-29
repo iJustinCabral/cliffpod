@@ -112,7 +112,7 @@ const ArticleList = () => {
         </div>
       )}
       <div>
-        <h3 className="text-xl font-bold mb-4">Newsletter generated from these episodes:</h3>
+        <h3 className="text-xl font-bold mb-4">Today's newsletter was generated from these episodes:</h3>
         {article.episodes.map((episode, index) => (
           <div key={index} className="mb-4 flex items-center">
             <Image
