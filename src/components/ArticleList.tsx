@@ -91,7 +91,6 @@ const ArticleList = () => {
       </div>
       {article.newsletter && (
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-xl text-black font-bold mb-4">This Week's Newsletter</h3>
           <ReactMarkdown 
             className="prose text-black max-w-none"
             remarkPlugins={[remarkGfm]}

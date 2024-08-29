@@ -27,10 +27,11 @@ export async function POST(request: Request) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `Please create a newsletter summarizing the following podcast transcripts. The newsletter should have the following sections:
-    1. Main Headlines (3-5 bullet points)
-    2. Detailed Summaries (one paragraph for each podcast)
-    3. Key Takeaways (3-5 bullet points)
-    4. Further Reading (2-3 suggested topics or resources)
+    1. Daily Title
+    2. Main Headlines (3-5 bullet points)
+    3. Detailed Summaries (one paragraph for each podcast)
+    4. Key Takeaways (3-5 bullet points)
+    5. Further Reading (2-3 suggested topics or resources)
 
     Here are the transcripts:
 
