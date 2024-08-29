@@ -73,3 +73,32 @@ export async function searchPodcasts(term: string) {
       throw error;
     }
   }
+
+  export async function fetchYesterdayEpisodes(feedUrl: string) {
+    try {
+      const feed = await parser.parseURL(feedUrl);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+  
+      const yesterdayEpisodes = feed.items
+        .filter(item => {
+          const pubDate = new Date(item.pubDate || '');
+          return pubDate >= yesterday && pubDate < today;
+        })
+        .map(item => ({
+          title: item.title || '',
+          description: item.contentSnippet || item.content || '',
+          pubDate: item.pubDate || '',
+          link: item.link || '',
+          artwork: feed.image?.url || '',
+        }));
+  
+      return yesterdayEpisodes;
+    } catch (error) {
+      console.error(`Error fetching feed from ${feedUrl}:`, error);
+      return [];
+    }
+  }
