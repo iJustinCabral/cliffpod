@@ -6,12 +6,3 @@ export interface PodcastEpisode {
   artwork: string;
   audioUrl: string;
 }
-
-export interface PodcastSummary {
-  podcastName: string;
-  episodeTitle: string;
-  publishDate: string;
-  audioUrl: string;
-  transcription: string;
-  summary: string;
-}

@@ -34,7 +34,11 @@ cron.schedule('0 0 * * *', async () => {
     // Store the new episodes
     if (yesterdayEpisodes.length > 0) {
       await storeEpisodes(yesterdayEpisodes);
+      console.log(`Stored ${yesterdayEpisodes.length} new episodes in the database`);
+    } else {
+      console.log('No new episodes to store');
     }
+    
     
     console.log('Scheduled job completed successfully');
   } catch (error) {

@@ -59,7 +59,7 @@ ${episode.description}
   return (
     <div className="space-y-12">
       <div>
-        <h2 className="text-2xl font-bold mb-4">Yesterday's Podcast Episodes</h2>
+        <h2 className="text-2xl font-bold mb-4">Latest Newsletter: </h2>
       </div>
       <div className="bg-white p-6 rounded-lg shadow-md">
         <ReactMarkdown 
@@ -70,7 +70,7 @@ ${episode.description}
         </ReactMarkdown>
       </div>
       <div>
-        <h3 className="text-xl font-bold mb-4">Featured Episodes:</h3>
+        <h3 className="text-xl font-bold mb-4">The Featured Episodes:</h3>
         {episodes.map((episode, index) => (
           <div key={index} className="mb-4 flex items-center">
             <Image

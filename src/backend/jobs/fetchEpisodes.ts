@@ -1,18 +1,21 @@
 import { PODCAST_FEEDS } from '@/utils/PodcastFeeds';
 import { fetchYesterdayEpisodes as fetchEpisodesFromFeed } from '@/utils/PodcastAPI';
-import { storeEpisodes } from './storeEpisodes';
 import { supabase } from '@/lib/supabase';
-import { CacheService } from '@/services/CacheService';
 import { PodcastEpisode } from '@/types';
+import { storeEpisodes } from './storeEpisodes';
+import { CacheService } from '@/services/CacheService';
 
 export async function fetchYesterdayEpisodes(): Promise<PodcastEpisode[]> {
   const cacheKey = 'yesterdayEpisodes';
+  console.log('Checking cache for yesterday\'s episodes...');
   const cachedEpisodes = CacheService.get(cacheKey) as PodcastEpisode[] | null;
 
   if (cachedEpisodes) {
+    console.log(`Cache hit! Returning ${cachedEpisodes.length} cached episodes`);
     return cachedEpisodes;
   }
 
+  console.log('Cache miss. Fetching episodes from database...');
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   yesterday.setHours(0, 0, 0, 0);
@@ -30,17 +33,26 @@ export async function fetchYesterdayEpisodes(): Promise<PodcastEpisode[]> {
   }
 
   if (episodes && episodes.length > 0) {
-    const typedEpisodes = episodes as PodcastEpisode[];
-    CacheService.set(cacheKey, typedEpisodes, 3600 * 24); // Cache for 24 hours
-    return typedEpisodes;
+    console.log(`Fetched ${episodes.length} episodes from the database. Caching...`);
+    CacheService.set(cacheKey, episodes, 3600 * 24); // Cache for 24 hours
+    console.log('Episodes cached successfully.');
+    return episodes as PodcastEpisode[];
   }
 
-  // If no episodes in the database, fetch and store them
-  console.log('No episodes found in database. Fetching and storing...');
+  console.log('No episodes found in database. Fetching from feeds...');
   const allYesterdayEpisodes = await Promise.all(PODCAST_FEEDS.map(fetchEpisodesFromFeed));
   const flattenedEpisodes = allYesterdayEpisodes.flat();
-  
-  // Don't store episodes here, as we'll do it in the server.ts file
-  CacheService.set(cacheKey, flattenedEpisodes, 3600 * 24); // Cache for 24 hours
+
+  console.log(`Fetched ${flattenedEpisodes.length} new episodes from feeds`);
+
+  if (flattenedEpisodes.length > 0) {
+    await storeEpisodes(flattenedEpisodes);
+    console.log(`Stored ${flattenedEpisodes.length} new episodes in the database. Caching...`);
+    CacheService.set(cacheKey, flattenedEpisodes, 3600 * 24); // Cache for 24 hours
+    console.log('Episodes cached successfully.');
+  } else {
+    console.log('No new episodes found from feeds.');
+  }
+
   return flattenedEpisodes;
 }
