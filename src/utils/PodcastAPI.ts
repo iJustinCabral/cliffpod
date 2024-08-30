@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import Parser from 'rss-parser';
+import { PODCAST_FEEDS } from './PodcastFeeds';
 
 const parser = new Parser();
 
@@ -65,6 +66,7 @@ export async function searchPodcasts(term: string) {
           pubDate: latestEpisode.pubDate || '',
           link: latestEpisode.link || '',
           artwork: feed.image?.url || '', // Add this line
+          audioUrl: latestEpisode.enclosure?.url || '',
         };
       }
       throw new Error('No episodes found in the feed');
@@ -94,6 +96,7 @@ export async function searchPodcasts(term: string) {
           pubDate: item.pubDate || '',
           link: item.link || '',
           artwork: feed.image?.url || '',
+          audioUrl: item.enclosure?.url || '',
         }));
   
       return yesterdayEpisodes;
@@ -102,3 +105,47 @@ export async function searchPodcasts(term: string) {
       return [];
     }
   }
+
+  export async function checkForTranscript(feedUrl: string): Promise<boolean> {
+    try {
+      const feed = await parser.parseURL(feedUrl);
+      if (feed.items && feed.items.length > 0) {
+        const latestEpisode = feed.items[0] as any; // Type assertion for custom fields
+  
+        // Check for podcast:transcript tag
+        if (latestEpisode.podcastTranscript) {
+          return true;
+        }
+  
+        // Check for transcript in content:encoded
+        if (latestEpisode.contentEncoded && latestEpisode.contentEncoded.includes('transcript')) {
+          return true;
+        }
+  
+        // Check for transcript in description or summary
+        const description = latestEpisode.description || latestEpisode['itunes:summary'];
+        if (description && description.toLowerCase().includes('transcript')) {
+          return true;
+        }
+      }
+      return false; // No transcript found
+    } catch (error) {
+      console.error(`Error checking for transcript in feed ${feedUrl}:`, error);
+      return false;
+    }
+  }
+
+export async function checkAllFeedsForTranscripts() {
+  console.log("Checking all podcast feeds for transcripts...");
+  
+  for (const feedUrl of PODCAST_FEEDS) {
+    try {
+      const hasTranscript = await checkForTranscript(feedUrl);
+      console.log(`${feedUrl}: ${hasTranscript ? 'Has transcript' : 'No transcript found'}`);
+    } catch (error) {
+      console.error(`Error checking ${feedUrl}:`, error);
+    }
+  }
+  
+  console.log("Finished checking all feeds.");
+}

@@ -4,6 +4,12 @@ export interface Episode {
     audioUrl: string;
     guid: string;
   }
+
+  interface ProgressCallbacks {
+    onDownloadProgress: (progress: number) => void;
+    onSplitProgress: (progress: number) => void;
+    onTranscribeProgress: (progress: number) => void;
+  }
   
   export async function fetchPodcastFeed(url: string): Promise<Episode[]> {
     try {
@@ -29,111 +35,133 @@ export interface Episode {
     }
   }
   
-  interface ProgressCallbacks {
-    onDownloadProgress: (progress: number) => void;
-    onSplitProgress: (progress: number) => void;
-    onTranscribeProgress: (progress: number) => void;
-  }
-  
   export async function transcribeEpisode(
     audioUrl: string,
     callbacks: ProgressCallbacks
   ): Promise<{ transcription: string }> {
     try {
-      if (!audioUrl) {
-        throw new Error('Audio URL is missing');
-      }
-  
-      new URL(audioUrl); // Validate URL
-  
-      const response = await fetch('/api/transcribe', {
+      console.log('Calling transcribeEpisode with audioUrl:', audioUrl);
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const apiUrl = `${baseUrl}/api/transcribe`;
+      console.log('Sending request to:', apiUrl);
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ audioUrl }),
       });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to transcribe episode');
-      }
-  
+
+      console.log('Response status:', response.status);
+
       const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+
       let transcription = '';
-      let fullTranscription = '';
-  
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-  
-          const chunk = new TextDecoder().decode(value);
-          const lines = chunk.split('\n').filter(line => line.trim() !== '');
-  
-          for (const line of lines) {
-            try {
-              const data = JSON.parse(line);
-              if (data.downloadProgress !== undefined) {
-                callbacks.onDownloadProgress(data.downloadProgress);
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += new TextDecoder().decode(value);
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim() === '') continue;
+          
+          try {
+            // Try to parse the line as JSON
+            const data = JSON.parse(line);
+            if (data.transcription) {
+              transcription += data.transcription + ' ';
+            } else if (data.progress) {
+              const { type, value } = data.progress;
+              switch (type) {
+                case 'downloadProgress':
+                  callbacks.onDownloadProgress(value);
+                  break;
+                case 'splitProgress':
+                  callbacks.onSplitProgress(value);
+                  break;
+                case 'transcribeProgress':
+                  callbacks.onTranscribeProgress(value);
+                  break;
               }
-              if (data.splitProgress !== undefined) {
-                callbacks.onSplitProgress(data.splitProgress);
+            }
+          } catch (e) {
+            // If parsing fails, check if the line contains any useful information
+            if (line.includes('transcription:')) {
+              const match = line.match(/transcription:\s*(.+)/);
+              if (match) {
+                transcription += match[1] + ' ';
               }
-              if (data.transcribeProgress !== undefined) {
-                callbacks.onTranscribeProgress(data.transcribeProgress);
-              }
-              if (data.transcription) {
-                transcription = data.transcription;
-                fullTranscription += transcription + ' ';
-              }
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (parseError) {
-              console.error('Error parsing JSON:', parseError);
-              console.error('Problematic line:', line);
+            } else if (line.includes('progress:')) {
+              console.log('Progress update:', line);
+            } else {
+              console.warn('Unhandled data:', line);
             }
           }
         }
       }
-  
-      if (!fullTranscription.trim()) {
+
+      if (!transcription.trim()) {
         throw new Error('Transcription is empty');
       }
-  
-      return { transcription: fullTranscription.trim() };
+
+      return { transcription: transcription.trim() };
     } catch (error) {
-      console.error('Error transcribing episode:', error);
+      console.error('Error in transcribeEpisode:', error);
       throw error;
     }
   }
   
-  export async function summarizeTranscription(transcription: string): Promise<{ summary: string }> {
+  export async function summarizeTranscription(transcription: string): Promise<{ newsletter: string }> {
     try {
       if (!transcription || transcription.trim() === '') {
         throw new Error('Transcription is empty or missing');
       }
-  
-      const response = await fetch('/api/summarize', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ transcription }),
-      });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to summarize transcription');
+
+      const chunkSize = 100000; // Adjust this value based on your needs
+      const chunks = [];
+
+      for (let i = 0; i < transcription.length; i += chunkSize) {
+        chunks.push(transcription.slice(i, i + chunkSize));
       }
-  
-      const result = await response.json();
-      if (!result.summary) {
-        throw new Error('Summary is empty');
+
+      let newsletter = '';
+
+      for (let i = 0; i < chunks.length; i++) {
+        const response = await fetch('/api/summarize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            transcription: chunks[i], 
+            isPartial: chunks.length > 1,
+            partNumber: i + 1,
+            totalParts: chunks.length
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to summarize transcription');
+        }
+
+        const result = await response.json();
+        newsletter += result.newsletter + ' ';
       }
-  
-      return { summary: result.summary };
+
+      if (!newsletter.trim()) {
+        throw new Error('Newsletter is empty');
+      }
+
+      return { newsletter: newsletter.trim() };
     } catch (error) {
       console.error('Error summarizing transcription:', error);
       throw error;
