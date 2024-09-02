@@ -4,14 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-interface Episode {
-  title: string;
-  description: string;
-  pub_date: string;
-  link: string;
-  artwork: string;
-}
+import { getEpisodes, Episode } from '@/utils/cache';
 
 const ArticleList = () => {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -21,12 +14,8 @@ const ArticleList = () => {
   useEffect(() => {
     const fetchEpisodes = async () => {
       try {
-        const response = await fetch('/api/yesterday-episodes');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setEpisodes(data.episodes);
+        const data = await getEpisodes();
+        setEpisodes(data);
       } catch (err) {
         console.error('Error fetching episodes:', err);
         setError(err instanceof Error ? err.message : 'Failed to load episodes');
@@ -40,12 +29,12 @@ const ArticleList = () => {
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
-  if (episodes.length === 0) return <div>No episodes found for yesterday.</div>;
+  if (episodes.length === 0) return <div>No episodes found.</div>;
 
   const mockNewsletter = `
-# Yesterday's Podcast Highlights
+# Latest Podcast Highlights
 
-Here's a summary of the top podcasts from yesterday:
+Here's a summary of the top podcasts:
 
 ${episodes.map(episode => `
 ## ${episode.title}
