@@ -11,4 +11,3 @@ export const PODCAST_FEEDS = [
     'https://lexfridman.com/feed/podcast/', // Lex Fridman
     'https://feeds.feedburner.com/TEDTalks_audio' // Ted Talks
   ];
-  

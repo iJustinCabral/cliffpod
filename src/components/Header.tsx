@@ -4,7 +4,7 @@ const Header = () => {
   return (
     <header className="bg-black shadow-md sticky top-0 z-10">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <Link href="/" className="text-2xl font-bold text-white-800">
+        <Link href="/" className="text-2xl text-orange-500 font-bold text-white-800">
           TLDL
         </Link>
         <nav>
