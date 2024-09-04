@@ -41,7 +41,7 @@ const Hero = () => {
             Too Long, Didn&#39;t Listen &#127911;
           </h1>
           <p className="text-xl mb-8">
-            &#129302; A.I. newsletters from the best podcast content, delivered to your inbox &#128236;.
+           Weekly newsletter created from the best podcast content, sent to your inbox &#128238;
           </p>
           <form onSubmit={handleSubmit} className="flex flex-col md:flex-row justify-center gap-4">
             <input

@@ -45,12 +45,24 @@ ${episode.description}
 `).join('\n\n')}
   `;
 
+function getCurrentDate(): string {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0'); // January is 0!
+    const yyyy = today.getFullYear();
+
+    return `${mm}/${dd}/${yyyy}`;
+}
+
+// Usage
+const formattedDate: string = getCurrentDate();
+
   return (
     <div className="space-y-12">
       <div>
-        <h2 className="text-2xl font-bold mb-4">Latest Newsletter: </h2>
+        <h2 className="text-2xl font-bold mb-4">Latest Newsletter: {formattedDate}</h2>
       </div>
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-white text-black p-6 rounded-lg shadow-md">
         <ReactMarkdown 
           className="prose max-w-none"
           remarkPlugins={[remarkGfm]}
@@ -72,7 +84,7 @@ ${episode.description}
             <div>
               <h4 className="font-semibold">{episode.title}</h4>
               <p className="text-sm text-gray-600">{episode.pub_date}</p>
-              <a href={episode.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+              <a href={episode.link} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
                 Listen to episode
               </a>
             </div>
