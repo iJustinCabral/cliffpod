@@ -1,36 +1,7 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+#TLDL News
 
-## Getting Started
+### Project Status - T.B.D. (API Restrictions & Cost)
 
-First, run the development server:
+This is the front end consisting of a NextJS application and Typescript. I created this as an excerise to learn backend programming. While this is the front end, there is also a backend server that fetches all the necessary podcast information, stores it in a datbase, and this frontend fetches it from there. It also uses Google's Gemini API which was fun to mess around with. However, it turns out google has some api restrictions regarding podcasts so I may try switch to OpenAI's whipser in the future if costs ever come down. 
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+This project was a great learning opportunity to dip my feet into things I've always wanted to learn but put off for one reason or another. I had a great time and will take my knoweldge of building a server into future projects. 
